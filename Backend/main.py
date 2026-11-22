@@ -1,5 +1,8 @@
-# Import data
-from data import users
+import hashlib
+import hmac
+
+# Import database connection
+from schema import get_connection
 
 # Import functions
 from auth import check_role
@@ -14,8 +17,36 @@ username = input("Enter username: ")
 password = input("Enter password: ")
 
 
-# Check username and password
-if username in users and users[username]["password"] == password:
+# Get the saved (hashed) password from the database
+conn = get_connection()
+cursor = conn.cursor()
+
+cursor.execute("""
+    SELECT password FROM users
+    WHERE username = ?
+""", (username,))
+
+row = cursor.fetchone()
+conn.close()
+
+
+# Check the password: saved format is  salt$hash
+login_ok = False
+
+if row is not None:
+    salt, saved_hash = row[0].split("$")
+
+    new_hash = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt.encode(),
+        100000
+    ).hex()
+
+    login_ok = hmac.compare_digest(new_hash, saved_hash)
+
+
+if login_ok:
 
     print("Login successful!")
 
@@ -48,12 +79,11 @@ if username in users and users[username]["password"] == password:
                     print(book)
 
             elif choice == "3":
-                book_id = int(input("Enter book ID: "))
                 title = input("Enter book title: ")
                 author = input("Enter author name: ")
                 category = input("Enter category: ")
 
-                print(add_book(book_id, title, author, category))
+                print(add_book(title, author, category))
 
             elif choice == "4":
                 book_id = int(input("Enter book ID: "))
