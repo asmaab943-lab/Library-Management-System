@@ -24,31 +24,33 @@ def add_book(book_id, title, author, category):
     return "Book added successfully!"
 
 
-# Search for a book
+# Search for books (returns a list of all matches)
 def search_book(title):
+
+    results = []
 
     for book in books:
         if title.lower() in book["title"].lower():
-            return book
+            results.append(book)
 
-    return "Book not found!"
+    return results
 
 
-# Display all books
+# Display all books (returns the list)
 def display_books():
 
-    if not books:
-        return "No books available!"
-
-    for book in books:
-        print(book)
+    return list(books)
 
 
-# Delete a book
+# Delete a book (not allowed while it is borrowed)
 def delete_book(book_id):
 
     for book in books:
         if book["id"] == book_id:
+
+            if book["available"] == False:
+                return "Cannot delete: the book is currently borrowed!"
+
             books.remove(book)
             return "Book deleted successfully!"
 
