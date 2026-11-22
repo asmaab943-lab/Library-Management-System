@@ -1,64 +1,117 @@
-from data import books, loans
-from auth import check_role
 from datetime import date, timedelta
+from schema import get_connection
+from auth import check_role
 
 
 # Borrow a book
 def borrow_book(member_name, book_id):
 
-    # Check if the member is a user
     if not check_role(member_name, "user"):
         return "User not found or not allowed!"
 
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Get user ID
+    cursor.execute("""
+        SELECT user_id FROM users
+        WHERE username = ?
+    """, (member_name,))
+
+    user = cursor.fetchone()
+
     # Find the book
-    for book in books:
-        if book["id"] == book_id:
+    cursor.execute("""
+        SELECT available FROM books
+        WHERE book_id = ?
+    """, (book_id,))
 
-            # Check if the book is available
-            if book["available"] == False:
-                return "Book is not available!"
+    book = cursor.fetchone()
 
-            # Change book availability
-            book["available"] = False
+    if book is None:
+        conn.close()
+        return "Book not found!"
 
-            # Set borrowing and due dates
-            borrow_date = date.today()
-            due_date = borrow_date + timedelta(days=14)
+    if book[0] == 0:
+        conn.close()
+        return "Book is not available!"
 
-            # Save borrowing information
-            loan = {
-                "member": member_name,
-                "book_id": book_id,
-                "borrow_date": str(borrow_date),
-                "due_date": str(due_date)
-            }
+    # Set borrowing and due dates
+    borrow_date = date.today()
+    due_date = borrow_date + timedelta(days=14)
 
-            loans.append(loan)
+    # Save borrowing information
+    cursor.execute("""
+        INSERT INTO loans
+        (user_id, book_id, borrow_date, due_date, status)
+        VALUES (?, ?, ?, ?, 'borrowed')
+    """, (
+        user[0],
+        book_id,
+        str(borrow_date),
+        str(due_date)
+    ))
 
-            return "Book borrowed successfully!"
+    # Change book availability
+    cursor.execute("""
+        UPDATE books
+        SET available = 0
+        WHERE book_id = ?
+    """, (book_id,))
 
-    return "Book not found!"
+    conn.commit()
+    conn.close()
+
+    return "Book borrowed successfully!"
 
 
 # Return a book
 def return_book(member_name, book_id):
 
-    # Check if the member is a user
     if not check_role(member_name, "user"):
         return "User not found or not allowed!"
 
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Get user ID
+    cursor.execute("""
+        SELECT user_id FROM users
+        WHERE username = ?
+    """, (member_name,))
+
+    user = cursor.fetchone()
+
     # Find the borrowing record
-    for loan in loans:
-        if loan["member"] == member_name and loan["book_id"] == book_id:
+    cursor.execute("""
+        SELECT loan_id FROM loans
+        WHERE user_id = ?
+        AND book_id = ?
+        AND status = 'borrowed'
+    """, (user[0], book_id))
 
-            # Make the book available again
-            for book in books:
-                if book["id"] == book_id:
-                    book["available"] = True
+    loan = cursor.fetchone()
 
-            # Remove the borrowing record
-            loans.remove(loan)
+    if loan is None:
+        conn.close()
+        return "No borrowing record found!"
 
-            return "Book returned successfully!"
+    # Update borrowing record
+    cursor.execute("""
+        UPDATE loans
+        SET status = 'returned',
+            return_date = ?
+        WHERE loan_id = ?
+    """, (str(date.today()), loan[0]))
 
-    return "No borrowing record found!"
+    # Make the book available again
+    cursor.execute("""
+        UPDATE books
+        SET available = 1
+        WHERE book_id = ?
+    """, (book_id,))
+
+    conn.commit()
+    conn.close()
+
+    return "Book returned successfully!"
