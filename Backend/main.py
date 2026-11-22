@@ -33,11 +33,19 @@ if username in users and users[username]["password"] == password:
             choice = input("Choose an option: ")
 
             if choice == "1":
-                print(display_books())
+                all_books = display_books()
+                if not all_books:
+                    print("No books available!")
+                for book in all_books:
+                    print(book)
 
             elif choice == "2":
                 title = input("Enter book title: ")
-                print(search_book(title))
+                found = search_book(title)
+                if not found:
+                    print("Book not found!")
+                for book in found:
+                    print(book)
 
             elif choice == "3":
                 book_id = int(input("Enter book ID: "))
@@ -72,11 +80,19 @@ if username in users and users[username]["password"] == password:
             choice = input("Choose an option: ")
 
             if choice == "1":
-                display_books()
+                all_books = display_books()
+                if not all_books:
+                    print("No books available!")
+                for book in all_books:
+                    print(book)
 
             elif choice == "2":
                 title = input("Enter book title: ")
-                print(search_book(title))
+                found = search_book(title)
+                if not found:
+                    print("Book not found!")
+                for book in found:
+                    print(book)
 
             elif choice == "3":
                 book_id = int(input("Enter book ID: "))
